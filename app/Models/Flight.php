@@ -16,11 +16,13 @@ class Flight extends Model
         'origin_airport_id',
         'destination_airport_id',
         'departure_time',
+        'arrival_time',
         'base_fare',
     ];
 
     protected $casts = [
         'departure_time' => 'datetime',
+        'arrival_time'   => 'datetime',
         'base_fare'      => 'decimal:2',
     ];
 
@@ -34,6 +36,16 @@ class Flight extends Model
         return $this->belongsTo(Airport::class, 'destination_airport_id');
     }
 
+    public function passengerSeats(): HasMany
+    {
+        return $this->hasMany(PassengerSeat::class);
+    }
+
+    public function availableSeats(): HasMany
+    {
+        return $this->hasMany(PassengerSeat::class)->where('is_available', true);
+    }
+    
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);

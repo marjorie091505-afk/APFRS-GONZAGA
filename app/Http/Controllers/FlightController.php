@@ -5,47 +5,45 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreFlightRequest;
 use App\Http\Requests\UpdateFlightRequest;
 use App\Models\Airport;
+use App\Models\Flight;
 use App\Services\DomainService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
 class FlightController extends Controller
 {
     public function __construct(private DomainService $service) {}
 
-    /** GET /flights — paginated with eager-loaded relations */
-    public function index(): JsonResponse
+    public function index(): View
     {
-        return response()->json($this->service->paginateFlights());
+        $flights = Flight::with(['originAirport', 'destinationAirport'])
+            ->withCount(['availableSeats as available_seats_count'])
+            ->latest('departure_time')
+            ->paginate(10);
+
+        return view('flights.index', compact('flights'));
     }
 
-    /** GET /flights/create — dependency data */
-    public function create(): JsonResponse
+    public function create(): View
     {
-        return response()->json([
-            'airports' => Airport::orderBy('code')->get(['id', 'code', 'name']),
-        ]);
+        $airports = Airport::orderBy('code')->get();
+        return view('flights.create', compact('airports'));
     }
 
-    /** POST /flights */
-    public function store(StoreFlightRequest $request): JsonResponse
+    public function store(StoreFlightRequest $request): RedirectResponse
     {
-        $flight = $this->service->createFlight($request->validated());
+        $this->service->createFlight($request->validated());
 
-        return response()->json([
-            'message' => 'Flight created successfully.',
-            'data'    => $flight,
-        ], 201);
+        return redirect()->route('flights.index')
+            ->with('success', 'Flight created successfully and seats generated.');
     }
 
-    /** PUT/PATCH /flights/{flight} */
-    public function update(UpdateFlightRequest $request, int $id): JsonResponse
+    public function update(UpdateFlightRequest $request, $id): RedirectResponse
     {
-        $flight = $this->service->updateFlight($id, $request->validated());
+        $flight = Flight::findOrFail($id);
+        $this->service->updateFlight($flight, $request->validated());
 
-        return response()->json([
-            'message' => 'Flight updated successfully.',
-            'data'    => $flight,
-        ]);
+        return redirect()->route('flights.index')
+            ->with('success', 'Flight updated successfully.');
     }
 }
