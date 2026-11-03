@@ -6,14 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-   public function up(): void
+  public function up(): void
 {
     Schema::create('airports', function (Blueprint $table) {
-        $table->id();
-        $table->string('code', 3)->unique(); 
+        $table->string('code')->primary(); // <--- ADD THIS INSTEAD
         $table->string('name');
-        $table->string('city');      // <-- Make sure this is here
-        $table->string('country');   // <-- Make sure this is here
+        $table->string('city');
+        $table->string('country');
         $table->timestamps();
     });
 }

@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Booking extends Model
 {
@@ -20,23 +19,14 @@ class Booking extends Model
         'total_paid',
     ];
 
-    protected $casts = [
-        'baggage_fee' => 'decimal:2',
-        'total_paid'  => 'decimal:2',
-    ];
-
+    // Add these two relationships:
     public function passenger(): BelongsTo
     {
-        return $this->belongsTo(Passenger::class);
+        return $this->belongsTo(Passenger::class, 'passenger_id', 'id');
     }
 
     public function flight(): BelongsTo
     {
-        return $this->belongsTo(Flight::class);
-    }
-
-    public function seats(): HasMany
-    {
-        return $this->hasMany(PassengerSeat::class);
+        return $this->belongsTo(Flight::class, 'flight_id', 'id');
     }
 }

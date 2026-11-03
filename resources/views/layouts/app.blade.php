@@ -9,8 +9,8 @@
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased">
     <nav class="bg-white border-b border-gray-200 px-6 py-4 flex gap-6">
-        <a href="{{ route('flights.index') }}" class="font-semibold text-lg hover:text-blue-600">Flights</a>
-        <a href="{{ route('bookings.index') }}" class="font-semibold text-lg hover:text-blue-600">Bookings</a>
+        <a href="{{ route('flights.index') }}">Flights</a>
+<a href="{{ route('bookings.index') }}">Bookings</a>
     </nav>
 
     <main class="max-w-6xl mx-auto mt-8 px-4">
