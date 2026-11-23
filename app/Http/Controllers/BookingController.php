@@ -18,10 +18,10 @@ class BookingController extends Controller
     public function index(): View
     {
         $bookings = Booking::with([
-                'passenger',
-                'flight.originAirport',
-                'flight.destinationAirport',
-                'seat',
+                'passenger', // NEED FURTHER OPTIMIZATION: This eager loading is necessary to avoid N+1 queries, but we should consider if we can limit the fields retrieved for the passenger to only those needed for the view.
+                'flight.originAirport',// NEED FURTHER OPTIMIZATION
+                'flight.destinationAirport',// NEED FURTHER OPTIMIZATION
+                'seat',// NEED FURTHER OPTIMIZATION
             ])
             ->latest()
             ->paginate(10);
@@ -32,7 +32,7 @@ class BookingController extends Controller
     public function create(): View
     {
         // THIS is the fix. We explicitly load availableSeats here.
-        $flights = Flight::with(['originAirport', 'destinationAirport', 'availableSeats'])->get();
+        $flights = Flight::with(['originAirport', 'destinationAirport', 'availableSeats'])->get();// NEED FURTHER OPTIMIZATION
         return view('bookings.create', compact('flights'));
     }
 
@@ -51,8 +51,8 @@ class BookingController extends Controller
     public function update(UpdateBookingRequest $request, $id): RedirectResponse
     {
         try {
-            $booking = Booking::findOrFail($id);
-            $this->service->updateBooking($booking, $request->validated());
+            $booking = Booking::findOrFail($id);// NEED FURTHER OPTIMIZATION
+            $this->service->updateBooking($booking, $request->validated());// NEED FURTHER OPTIMIZATION
 
             return redirect()->route('bookings.index')
                 ->with('success', 'Booking updated successfully.');

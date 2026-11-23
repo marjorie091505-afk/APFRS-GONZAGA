@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class FlightController extends Controller
 {
@@ -19,12 +20,13 @@ class FlightController extends Controller
      */
     public function index(Request $request): View
     {
+        //THIS MUST BE DONE N UR FORM REQUEST
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
         ]);
         $search = trim($validated['search'] ?? '');
 
-        $flights = Flight::with(['originAirport', 'destinationAirport'])
+        $flights = Flight::with(['originAirport', 'destinationAirport'])// NEED FURTHER OPTIMIZATION
             ->when($search !== '', function (Builder $query) use ($search) {
                 $term = '%'.$search.'%';
 
@@ -55,8 +57,8 @@ class FlightController extends Controller
     public function create()
     {
         // Get all airports to populate the dropdowns in the form
-        $airports = Airport::all();
-        
+        $airports = Airport::all();// NEED FURTHER OPTIMIZATION: THIS CAN CAUSE N+1
+
         return view('flights.create', compact('airports'));
     }
 
@@ -65,6 +67,7 @@ class FlightController extends Controller
      */
     public function store(Request $request)
     {
+        //THIS MUS T BE DONE N UR FORM REQUEST - TRANSFER THIS
         // 1. Validate the form data
         $validated = $request->validate([
             'flight_number' => 'required|string|max:15|unique:flights,flight_number',
@@ -90,5 +93,20 @@ class FlightController extends Controller
         });
 
         return redirect()->route('flights.index')->with('success', 'Flight created successfully!');
+    }
+
+    public function destroy(Flight $flight): RedirectResponse
+    {
+        abort_unless(auth()->user()->is_admin, 403);
+
+        if ($flight->bookings()->exists()) {
+            return redirect()->route('flights.index')
+                ->with('error', 'This flight cannot be deleted because it has existing bookings.');
+        }
+
+        $flight->delete();
+
+        return redirect()->route('flights.index')
+            ->with('success', 'Flight deleted successfully!');
     }
 }

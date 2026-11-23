@@ -19,10 +19,10 @@ class DomainService
             if (Airport::count() === 0) {
                 Airport::create(['code' => 'MNL', 'name' => 'Ninoy Aquino', 'city' => 'Manila', 'country' => 'Philippines']);
                 Airport::create(['code' => 'CEB', 'name' => 'Mactan Cebu', 'city' => 'Cebu', 'country' => 'Philippines']);
-            }
+            } // ANO NI?
 
             $firstAirport = Airport::first();
-            $secondAirport = Airport::skip(1)->first() ?? $firstAirport;
+            $secondAirport = Airport::skip(1)->first() ?? $firstAirport; // WHY U SKIP THE FIRST 1?
 
             $data['origin_airport_id'] = $firstAirport->id;
             $data['destination_airport_id'] = $secondAirport->id;
@@ -174,6 +174,7 @@ class DomainService
         return $digits;
     }
 
+    //ANO ANG PURPOSE?
     private function generateBookingReference(): string
     {
         do {

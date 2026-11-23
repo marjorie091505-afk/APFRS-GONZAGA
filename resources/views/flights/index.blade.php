@@ -37,6 +37,9 @@
                 <th class="px-6 py-3">Departure</th>
                 <th class="px-6 py-3">Base Fare</th>
                 <th class="px-6 py-3">Available Seats</th>
+                @if(auth()->user()->is_admin)
+                    <th class="px-6 py-3 text-right">Actions</th>
+                @endif
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -51,10 +54,24 @@
                 <td class="px-6 py-4">
                    
                 </td>
+                @if(auth()->user()->is_admin)
+                    <td class="px-6 py-4 text-right">
+                        <form method="POST"
+                              action="{{ route('flights.destroy', $flight) }}"
+                              onsubmit="return confirm('Are you sure you want to delete this flight?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                @endif
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                <td colspan="{{ auth()->user()->is_admin ? 6 : 5 }}" class="px-6 py-8 text-center text-gray-500">
                     {{ $search !== '' ? 'No flights match your search.' : 'No flights found.' }}
                 </td>
             </tr>

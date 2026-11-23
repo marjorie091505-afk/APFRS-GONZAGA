@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/flights', [FlightController::class, 'index'])->name('flights.index');
     Route::get('/flights/create', [FlightController::class, 'create'])->name('flights.create');
     Route::post('/flights', [FlightController::class, 'store'])->name('flights.store');
+    Route::delete('/flights/{flight}', [FlightController::class, 'destroy'])->name('flights.destroy');
 
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/create', [BookingController::class, 'create'])->name('bookings.create');

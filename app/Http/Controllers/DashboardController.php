@@ -22,17 +22,17 @@ class DashboardController extends Controller
         ];
 
         $recentBookings = Booking::with([
-            'passenger',
-            'flight.originAirport',
-            'flight.destinationAirport',
+            'passenger',// NEED FURTHER OPTIMIZATION
+            'flight.originAirport',// NEED FURTHER OPTIMIZATION
+            'flight.destinationAirport',// NEED FURTHER OPTIMIZATION
         ])
             ->latest()
             ->take(5)
             ->get();
 
         $upcomingFlights = Flight::with([
-            'originAirport',
-            'destinationAirport',
+            'originAirport',// NEED FURTHER OPTIMIZATION
+            'destinationAirport',// NEED FURTHER OPTIMIZATION
         ])
             ->where('departure_time', '>=', now())
             ->orderBy('departure_time')
