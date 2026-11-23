@@ -10,8 +10,7 @@ class Airport extends Model
 {
     use HasFactory;
 
-    // 1. Tell Laravel your custom Primary Key
-    protected $primaryKey = 'airport_code';
+    protected $primaryKey = 'code';
     
     // 2. Tell Laravel it's not an auto-incrementing integer
     public $incrementing = false;
@@ -20,13 +19,13 @@ class Airport extends Model
     // 3. The fillable array
     protected $fillable = ['code', 'name', 'city', 'country'];
 
-    public function departingFlights()
+    public function departingFlights(): HasMany
     {
-        return $this->hasMany(Flight::class, 'origin_airport', 'airport_code');
+        return $this->hasMany(Flight::class, 'origin_airport_id', 'code');
     }
 
-    public function arrivingFlights()
+    public function arrivingFlights(): HasMany
     {
-        return $this->hasMany(Flight::class, 'destination_airport', 'airport_code');
+        return $this->hasMany(Flight::class, 'destination_airport_id', 'code');
     }
 }

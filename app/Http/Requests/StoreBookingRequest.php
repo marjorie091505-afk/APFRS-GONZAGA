@@ -14,23 +14,13 @@ class StoreBookingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'booking_reference' => ['required', 'string', 'max:20', 'unique:bookings,booking_reference'],
             'passport_number'   => ['required', 'string', 'max:20'],
-            'full_name'         => ['required', 'string', 'max:150'],
+            'full_name'         => ['required', 'string', 'max:255'],
+            'email'             => ['nullable', 'email', 'max:255'],
+            'phone'             => ['nullable', 'string', 'max:20'],
             'flight_id'         => ['required', 'integer', 'exists:flights,id'],
-            'seat_class'        => ['required', 'string', 'in:Economy,Business,First'],
+            'passenger_seat_id' => ['required', 'integer', 'exists:passenger_seats,id'],
             'baggage_fee'       => ['nullable', 'numeric', 'min:0'],
-            'seat_number'       => ['required', 'string', 'max:5'],
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'booking_reference.unique' => 'Booking reference already exists.',
-            'flight_id.exists'         => 'The selected flight does not exist.',
-            'seat_class.in'            => 'Seat class must be Economy, Business, or First.',
-            'seat_number.required'     => 'Please assign a seat number.',
         ];
     }
 }

@@ -4,19 +4,49 @@ namespace App\Http\Controllers;
 
 use App\Models\Flight;
 use App\Models\Airport;
+use App\Services\DomainService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class FlightController extends Controller
 {
+    public function __construct(private DomainService $service) {}
+
     /**
      * Display a listing of the flights.
      */
-    public function index()
+    public function index(Request $request): View
     {
-        // Get all flights, newest first
-        $flights = Flight::orderBy('departure_time', 'asc')->get();
-        
-        return view('flights.index', compact('flights'));
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+        $search = trim($validated['search'] ?? '');
+
+        $flights = Flight::with(['originAirport', 'destinationAirport'])
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $term = '%'.$search.'%';
+
+                $query->where(function (Builder $query) use ($term) {
+                    $query->where('flight_number', 'like', $term)
+                        ->orWhereHas('originAirport', function (Builder $airportQuery) use ($term) {
+                            $airportQuery->where('code', 'like', $term)
+                                ->orWhere('name', 'like', $term)
+                                ->orWhere('city', 'like', $term);
+                        })
+                        ->orWhereHas('destinationAirport', function (Builder $airportQuery) use ($term) {
+                            $airportQuery->where('code', 'like', $term)
+                                ->orWhere('name', 'like', $term)
+                                ->orWhere('city', 'like', $term);
+                        });
+                });
+            })
+            ->orderBy('departure_time')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('flights.index', compact('flights', 'search'));
     }
 
     /**
@@ -38,28 +68,27 @@ class FlightController extends Controller
         // 1. Validate the form data
         $validated = $request->validate([
             'flight_number' => 'required|string|max:15|unique:flights,flight_number',
-          'origin_airport_id' => 'required|string|exists:airports,code',
-'destination_airport_id' => 'required|string|exists:airports,code',
-            // Note: If your form has an arrival_time input, uncomment the line below:
-            // 'arrival_time' => 'required|date|after:departure_time', 
+            'origin_airport_id' => 'required|string|exists:airports,code',
+            'destination_airport_id' => 'required|string|exists:airports,code',
+            'departure_time' => 'required|date',
             'base_fare' => 'required|numeric|min:0',
         ]);
 
-        // 2. Apply Business Rule: Uppercase airport codes
         $validated['origin_airport_id'] = strtoupper($validated['origin_airport_id']);
         $validated['destination_airport_id'] = strtoupper($validated['destination_airport_id']);
 
-        // 3. Create the flight in the database
-        Flight::create([
-    'flight_number' => $validated['flight_number'],
-    'origin_airport_id' => $validated['origin_airport_id'],
-    'destination_airport_id' => $validated['destination_airport_id'],
-    // If the date is missing from the form, this forces it to use the current time
-    'departure_time' => $validated['departure_time'] ?? now(), 
-    'base_fare' => $validated['base_fare'],
-]);
+        DB::transaction(function () use ($validated) {
+            $flight = Flight::create([
+                'flight_number' => $validated['flight_number'],
+                'origin_airport_id' => $validated['origin_airport_id'],
+                'destination_airport_id' => $validated['destination_airport_id'],
+                'departure_time' => $validated['departure_time'],
+                'base_fare' => $validated['base_fare'],
+            ]);
 
-        // 4. Redirect the user back to the flights list with a success message
+            $this->service->ensureSeatsForFlight($flight);
+        });
+
         return redirect()->route('flights.index')->with('success', 'Flight created successfully!');
     }
 }

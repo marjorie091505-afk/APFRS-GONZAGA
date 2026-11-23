@@ -10,15 +10,11 @@ return new class extends Migration
     {
         Schema::create('passenger_seats', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('booking_id')
-                  ->constrained('bookings')
-                  ->onDelete('cascade');
+            $table->foreignId('flight_id')->constrained('flights')->onDelete('cascade');
             $table->string('seat_number', 5);
+            $table->enum('seat_class', ['economy', 'business', 'first']);
+            $table->boolean('is_available')->default(true); // THIS IS THE MISSING COLUMN
             $table->timestamps();
-
-            // One seat cannot be held twice on the same booking context;
-            // combined with flight check in service for availability.
-            $table->unique(['booking_id', 'seat_number']);
         });
     }
 

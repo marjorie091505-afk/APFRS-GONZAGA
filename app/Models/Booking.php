@@ -14,6 +14,7 @@ class Booking extends Model
         'booking_reference',
         'passenger_id',
         'flight_id',
+        'passenger_seat_id',
         'seat_class',
         'baggage_fee',
         'total_paid',
@@ -28,5 +29,10 @@ class Booking extends Model
     public function flight(): BelongsTo
     {
         return $this->belongsTo(Flight::class, 'flight_id', 'id');
+    }
+
+    public function seat(): BelongsTo
+    {
+        return $this->belongsTo(PassengerSeat::class, 'passenger_seat_id');
     }
 }

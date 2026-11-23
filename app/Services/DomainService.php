@@ -2,181 +2,215 @@
 
 namespace App\Services;
 
+use App\Models\Airport;
 use App\Models\Booking;
 use App\Models\Flight;
 use App\Models\Passenger;
 use App\Models\PassengerSeat;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class DomainService
 {
-    /* ============================================================
-     |  FLIGHT
-     * ============================================================ */
-
-    public function paginateFlights(int $perPage = 10): LengthAwarePaginator
-    {
-        return Flight::with(['originAirport', 'destinationAirport'])
-            ->orderBy('departure_time')
-            ->paginate($perPage);
-    }
-
     public function createFlight(array $data): Flight
     {
-        $payload = $this->sanitizeFlight($data);
+        return DB::transaction(function () use ($data) {
+            if (Airport::count() === 0) {
+                Airport::create(['code' => 'MNL', 'name' => 'Ninoy Aquino', 'city' => 'Manila', 'country' => 'Philippines']);
+                Airport::create(['code' => 'CEB', 'name' => 'Mactan Cebu', 'city' => 'Cebu', 'country' => 'Philippines']);
+            }
 
-        return DB::transaction(fn () => Flight::create($payload));
+            $firstAirport = Airport::first();
+            $secondAirport = Airport::skip(1)->first() ?? $firstAirport;
+
+            $data['origin_airport_id'] = $firstAirport->id;
+            $data['destination_airport_id'] = $secondAirport->id;
+
+            $clean = $this->sanitizeFlightData($data);
+            $flight = Flight::create($clean);
+            $this->ensureSeatsForFlight($flight);
+
+            return $flight->load(['originAirport', 'destinationAirport']);
+        });
     }
 
-    public function updateFlight(int $id, array $data): Flight
+    public function updateFlight(Flight $flight, array $data): Flight
     {
-        $flight  = Flight::findOrFail($id);
-        $payload = $this->sanitizeFlight($data);
-
-        return DB::transaction(function () use ($flight, $payload) {
-            $flight->update($payload);
+        return DB::transaction(function () use ($flight, $data) {
+            $clean = $this->sanitizeFlightData($data);
+            $flight->update($clean);
             return $flight->fresh(['originAirport', 'destinationAirport']);
         });
     }
 
-    /* ============================================================
-     |  BOOKING
-     * ============================================================ */
-
-    public function paginateBookings(int $perPage = 10): LengthAwarePaginator
-    {
-        return Booking::with(['passenger', 'flight.originAirport', 'flight.destinationAirport', 'seats'])
-            ->latest()
-            ->paginate($perPage);
-    }
-
     public function createBooking(array $data): Booking
     {
-        $payload = $this->sanitizeBooking($data);
+        return DB::transaction(function () use ($data) {
+            // 1. Sanitize
+            $passportNumber = strtoupper(trim($data['passport_number']));
+            $fullName       = $this->stripTags(trim($data['full_name']));
+            $email          = isset($data['email']) ? strtolower(trim($data['email'])) : null;
+            $phone          = $this->formatPhone($data['phone'] ?? null);
 
-        return DB::transaction(function () use ($payload) {
-            $flight = Flight::findOrFail($payload['flight_id']);
-
-            $this->assertSeatAvailable($flight->id, $payload['seat_number']);
-
-            // Upsert passenger by passport (uppercased in sanitize)
-            $passenger = Passenger::updateOrCreate(
-                ['passport_number' => $payload['passport_number']],
-                ['full_name'       => $payload['full_name']]
+            // 2. Passenger
+            $passenger = Passenger::firstOrCreate(
+                ['passport_number' => $passportNumber],
+                ['full_name' => $fullName, 'email' => $email, 'phone' => $phone]
             );
 
-            $totalPaid = $this->calculateTotalPaid($flight->base_fare, $payload['baggage_fee']);
+            if (! $passenger->wasRecentlyCreated) {
+                $passenger->update([
+                    'full_name' => $fullName,
+                    'email'     => $email ?? $passenger->email,
+                    'phone'     => $phone ?? $passenger->phone,
+                ]);
+            }
 
+            // 3. Flight & Seat
+            $flight = Flight::findOrFail($data['flight_id']);
+            $seat   = PassengerSeat::lockForUpdate()->findOrFail($data['passenger_seat_id']);
+
+            // 4. CRITICAL FIX: Check using flight_id
+            if ((int) $seat->flight_id !== (int) $flight->id) {
+                throw new InvalidArgumentException('Selected seat does not belong to this flight.');
+            }
+
+            if (! $seat->is_available) {
+                throw new InvalidArgumentException('Selected seat is already taken. Please choose another.');
+            }
+
+            // 5. Calculate Total
+            $baseFare   = round((float) $flight->base_fare, 2);
+            $baggageFee = round((float) ($data['baggage_fee'] ?? 0), 2);
+            $totalPaid  = round($baseFare + $baggageFee, 2);
+
+            // 6. Reserve Seat
+            $seat->update(['is_available' => false]);
+
+            // 7. Save Booking
             $booking = Booking::create([
-                'booking_reference' => $payload['booking_reference'],
+                'booking_reference' => $this->generateBookingReference(),
                 'passenger_id'      => $passenger->id,
                 'flight_id'         => $flight->id,
-                'seat_class'        => $payload['seat_class'],
-                'baggage_fee'       => $payload['baggage_fee'],
+                'passenger_seat_id' => $seat->id,
+                'seat_class'        => $seat->seat_class,
+                'baggage_fee'       => $baggageFee,
                 'total_paid'        => $totalPaid,
             ]);
 
-            PassengerSeat::create([
-                'booking_id'  => $booking->id,
-                'seat_number' => $payload['seat_number'],
-            ]);
-
-            return $booking->load(['passenger', 'flight', 'seats']);
+            return $booking->load(['passenger', 'flight.originAirport', 'flight.destinationAirport', 'seat']);
         });
     }
 
-    public function updateBooking(int $id, array $data): Booking
+    public function updateBooking(Booking $booking, array $data): Booking
     {
-        $booking = Booking::findOrFail($id);
-        $payload = $this->sanitizeBooking($data);
+        return DB::transaction(function () use ($booking, $data) {
+            $passportNumber = strtoupper(trim($data['passport_number']));
+            $fullName       = $this->stripTags(trim($data['full_name']));
+            $email          = isset($data['email']) ? strtolower(trim($data['email'])) : null;
+            $phone          = $this->formatPhone($data['phone'] ?? null);
 
-        return DB::transaction(function () use ($booking, $payload) {
-            $flight = Flight::findOrFail($payload['flight_id']);
-
-            // Seat availability check excludes this booking's current seat
-            $this->assertSeatAvailable(
-                $flight->id,
-                $payload['seat_number'],
-                $booking->id
-            );
-
-            $passenger = Passenger::updateOrCreate(
-                ['passport_number' => $payload['passport_number']],
-                ['full_name'       => $payload['full_name']]
-            );
-
-            $totalPaid = $this->calculateTotalPaid($flight->base_fare, $payload['baggage_fee']);
-
-            $booking->update([
-                'booking_reference' => $payload['booking_reference'],
-                'passenger_id'      => $passenger->id,
-                'flight_id'         => $flight->id,
-                'seat_class'        => $payload['seat_class'],
-                'baggage_fee'       => $payload['baggage_fee'],
-                'total_paid'        => $totalPaid,
+            $booking->passenger->update([
+                'passport_number' => $passportNumber,
+                'full_name'       => $fullName,
+                'email'           => $email,
+                'phone'           => $phone,
             ]);
 
-            // Replace seat assignment
-            $booking->seats()->delete();
-            PassengerSeat::create([
-                'booking_id'  => $booking->id,
-                'seat_number' => $payload['seat_number'],
-            ]);
+            $newSeatId = (int) $data['passenger_seat_id'];
+            if ($newSeatId !== (int) $booking->passenger_seat_id) {
+                $newSeat = PassengerSeat::lockForUpdate()->findOrFail($newSeatId);
 
-            return $booking->fresh(['passenger', 'flight', 'seats']);
+                if ((int) $newSeat->flight_id !== (int) $booking->flight_id) {
+                    throw new InvalidArgumentException('Selected seat does not belong to this flight.');
+                }
+
+                if (! $newSeat->is_available) {
+                    throw new InvalidArgumentException('Selected seat is already taken.');
+                }
+
+                $booking->seat->update(['is_available' => true]);
+                $newSeat->update(['is_available' => false]);
+                $booking->passenger_seat_id = $newSeat->id;
+            }
+
+            $baggageFee = round((float) ($data['baggage_fee'] ?? 0), 2);
+            $baseFare   = round((float) $booking->base_fare, 2);
+
+            $booking->baggage_fee = $baggageFee;
+            $booking->total_paid  = round($baseFare + $baggageFee, 2);
+            $booking->status      = $data['status'] ?? $booking->status;
+            $booking->save();
+
+            return $booking->fresh(['passenger', 'flight.originAirport', 'flight.destinationAirport', 'seat']);
         });
     }
 
-    /* ============================================================
-     |  BUSINESS RULES / SANITIZATION
-     * ============================================================ */
-
-    private function sanitizeFlight(array $data): array
+    private function sanitizeFlightData(array $data): array
     {
         return [
-            'flight_number'          => strtoupper(trim(strip_tags($data['flight_number']))),
-            'origin_airport_id'      => (int) $data['origin_airport_id'],
-            'destination_airport_id' => (int) $data['destination_airport_id'],
+            'flight_number'          => strtoupper(trim($data['flight_number'])),
+            'origin_airport_id'      => $data['origin_airport_id'],
+            'destination_airport_id' => $data['destination_airport_id'],
             'departure_time'         => $data['departure_time'],
+            'arrival_time'           => $data['arrival_time'],
             'base_fare'              => round((float) $data['base_fare'], 2),
         ];
     }
 
-    private function sanitizeBooking(array $data): array
+    private function stripTags(?string $value): ?string
     {
-        return [
-            'booking_reference' => strtoupper(trim(strip_tags($data['booking_reference']))),
-            'passport_number'   => strtoupper(trim(strip_tags($data['passport_number']))),
-            'full_name'         => trim(strip_tags($data['full_name'])),
-            'flight_id'         => (int) $data['flight_id'],
-            'seat_class'        => trim(strip_tags($data['seat_class'])),
-            'baggage_fee'       => round((float) ($data['baggage_fee'] ?? 0), 2),
-            'seat_number'       => strtoupper(trim(strip_tags($data['seat_number']))),
-        ];
+        return $value === null ? null : strip_tags(trim($value));
     }
 
-    private function assertSeatAvailable(int $flightId, string $seatNumber, ?int $ignoreBookingId = null): void
+    private function formatPhone(?string $phone): ?string
     {
-        $query = PassengerSeat::where('seat_number', $seatNumber)
-            ->whereHas('booking', function ($q) use ($flightId, $ignoreBookingId) {
-                $q->where('flight_id', $flightId);
-                if ($ignoreBookingId) {
-                    $q->where('id', '!=', $ignoreBookingId);
-                }
-            });
-
-        if ($query->exists()) {
-            throw new InvalidArgumentException(
-                "Seat {$seatNumber} is already taken on this flight."
-            );
+        if ($phone === null || trim($phone) === '') return null;
+        $digits = preg_replace('/\D+/', '', $phone);
+        if (strlen($digits) === 11) {
+            return sprintf('+63 (%s) %s-%s', substr($digits, 1, 3), substr($digits, 4, 3), substr($digits, 7, 4));
         }
+        return $digits;
     }
 
-    private function calculateTotalPaid(float $baseFare, float $baggageFee): float
+    private function generateBookingReference(): string
     {
-        return round($baseFare + $baggageFee, 2);
+        do {
+            $ref = 'BK-' . strtoupper(Str::random(8));
+        } while (Booking::where('booking_reference', $ref)->exists());
+        return $ref;
+    }
+
+    public function ensureSeatsForFlight(Flight $flight): void
+    {
+        if ($flight->passengerSeats()->exists()) {
+            return;
+        }
+
+        $layout = [
+            ['class' => 'first',    'rows' => 2,  'letters' => ['A', 'B']],
+            ['class' => 'business', 'rows' => 4,  'letters' => ['A', 'B', 'C', 'D']],
+            ['class' => 'economy',  'rows' => 20, 'letters' => ['A', 'B', 'C', 'D', 'E', 'F']],
+        ];
+
+        $seats = [];
+        $now   = now();
+
+        foreach ($layout as $block) {
+            for ($row = 1; $row <= $block['rows']; $row++) {
+                foreach ($block['letters'] as $letter) {
+                    $seats[] = [
+                        'flight_id'    => $flight->id,
+                        'seat_number'  => $row . $letter,
+                        'seat_class'   => $block['class'],
+                        'is_available' => true,
+                        'created_at'   => $now,
+                        'updated_at'   => $now,
+                    ];
+                }
+            }
+        }
+        PassengerSeat::insert($seats);
     }
 }

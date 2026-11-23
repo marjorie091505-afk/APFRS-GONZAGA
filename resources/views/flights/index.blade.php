@@ -8,6 +8,26 @@
     </a>
 </div>
 
+<form method="GET" action="{{ route('flights.index') }}" class="mb-6 flex flex-col gap-3 sm:flex-row">
+    <label for="flight-search" class="sr-only">Search flights</label>
+    <input
+        id="flight-search"
+        name="search"
+        type="search"
+        value="{{ $search }}"
+        placeholder="Search flight number, airport, or city"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:max-w-md"
+    >
+    <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+        Search
+    </button>
+    @if($search !== '')
+        <a href="{{ route('flights.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-center hover:bg-gray-50">
+            Clear
+        </a>
+    @endif
+</form>
+
 <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
     <table class="w-full text-left text-sm">
         <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 font-medium">
@@ -34,11 +54,13 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="px-6 py-8 text-center text-gray-500">No flights found.</td>
+                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                    {{ $search !== '' ? 'No flights match your search.' : 'No flights found.' }}
+                </td>
             </tr>
             @endforelse
         </tbody>
     </table>
 </div>
-<div class="mt-4"></div>
+<div class="mt-4">{{ $flights->links() }}</div>
 @endsection

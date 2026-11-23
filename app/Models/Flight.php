@@ -37,16 +37,16 @@ class Flight extends Model
 
     public function passengerSeats(): HasMany
     {
-        return $this->hasMany(PassengerSeat::class, 'flight_number', 'flight_number');
+        return $this->hasMany(PassengerSeat::class, 'flight_id');
     }
 
     public function availableSeats(): HasMany
     {
-        return $this->hasMany(PassengerSeat::class, 'flight_number', 'flight_number')->where('is_available', true);
+        return $this->passengerSeats()->where('is_available', true);
     }
 
     public function bookings(): HasMany
     {
-        return $this->hasMany(Booking::class, 'flight_number', 'flight_number');
+        return $this->hasMany(Booking::class, 'flight_id');
     }
 }

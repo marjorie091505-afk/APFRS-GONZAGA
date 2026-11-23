@@ -14,7 +14,19 @@ class AuthenticationTest extends TestCase
     {
         $response = $this->get('/login');
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertSee('Sign in to your account')
+            ->assertSee('Create account')
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false);
+    }
+
+    public function test_admin_accounts_are_labeled_in_the_navigation()
+    {
+        $this->actingAs(User::factory()->create(['is_admin' => true]))
+            ->get('/flights')
+            ->assertOk()
+            ->assertSee('Admin');
     }
 
     public function test_users_can_authenticate_using_the_login_screen()
@@ -45,6 +57,11 @@ class AuthenticationTest extends TestCase
     public function test_users_can_logout()
     {
         $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/flights')
+            ->assertOk()
+            ->assertSee('Log out');
 
         $response = $this->actingAs($user)->post('/logout');
 

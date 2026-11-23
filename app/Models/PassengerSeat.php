@@ -5,25 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PassengerSeat extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'booking_id',
-        'flight_number',
-        'seat_number',
-        'is_available',
-    ];
+    protected $fillable = ['flight_id', 'seat_number', 'seat_class', 'is_available'];
 
-    public function booking(): BelongsTo
-    {
-        return $this->belongsTo(Booking::class, 'booking_id', 'booking_reference');
-    }
+    protected $casts = [
+        'is_available' => 'boolean',
+    ];
 
     public function flight(): BelongsTo
     {
-        return $this->belongsTo(Flight::class, 'flight_number', 'flight_number');
+        // Force Laravel to look for 'flight_id', not 'flight_number'
+        return $this->belongsTo(Flight::class, 'flight_id');
+    }
+
+    public function booking(): HasOne
+    {
+        return $this->hasOne(Booking::class, 'passenger_seat_id');
     }
 }
