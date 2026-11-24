@@ -1,7 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Armchair, CalendarClock, CircleDollarSign, Plane, TicketCheck, UsersRound } from 'lucide-react';
+import { Armchair, CalendarClock, ChevronLeft, ChevronRight, CircleDollarSign, Plane, TicketCheck, UsersRound } from 'lucide-react';
+import { useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,92 +20,98 @@ const currency = (amount: number | string) => new Intl.NumberFormat('en-PH', { s
 
 const dateTime = (value: string) => new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 
+const destinations = [
+    {
+        city: 'Cebu City',
+        duration: '0h 55m, direct',
+        dates: 'Sun 12/6 · Sat 12/12',
+        price: '₱3,826',
+        image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=85',
+    },
+    {
+        city: 'Manila',
+        duration: '1h 25m, direct',
+        dates: 'Tue 12/1 · Sat 12/5',
+        price: '₱4,974',
+        image: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=900&q=85',
+    },
+    {
+        city: 'Panglao',
+        duration: '1h 5m, direct',
+        dates: 'Mon 12/7 · Fri 12/11',
+        price: '₱5,484',
+        image: 'https://images.unsplash.com/photo-1547471080-7cc2caa47102?auto=format&fit=crop&w=900&q=85',
+    },
+    {
+        city: 'Puerto Princesa',
+        duration: '1h 10m, direct',
+        dates: 'Thu 12/10 · Mon 12/14',
+        price: '₱5,548',
+        image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=85',
+    },
+];
+
 export default function Dashboard() {
     const { auth, stats, recentBookings = [], upcomingFlights = [], upcomingBookings = [] } = usePage<SharedData & DashboardProps>().props;
+    const [destinationOffset, setDestinationOffset] = useState(0);
 
     if (!auth.user.is_admin) {
+        const visibleDestinations = [...destinations.slice(destinationOffset), ...destinations.slice(0, destinationOffset)];
+
         return (
             <AirlineLayout>
                 <Head title="My flight schedule" />
                 <div className="space-y-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <p className="text-primary text-sm font-semibold">Passenger dashboard</p>
-                            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Welcome, {auth.user.name}</h1>
-                            <p className="text-muted-foreground mt-2">Your upcoming reservations and departure information.</p>
+                    <section aria-label="Popular destinations" className="space-y-4">
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                            {visibleDestinations.map((destination) => (
+                                <Link
+                                    key={destination.city}
+                                    href={`${route('flights.index')}?search=${encodeURIComponent(destination.city)}`}
+                                    className="group overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:outline-none"
+                                >
+                                    <div className="p-3 pb-0">
+                                        <img
+                                            src={destination.image}
+                                            alt={`${destination.city} beach destination`}
+                                            className="h-52 w-full rounded-[22px] object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex h-56 flex-col px-5 pt-6 pb-6">
+                                        <h2 className="text-[26px] leading-none font-black tracking-tight text-slate-950">{destination.city}</h2>
+                                        <p className="mt-3 font-semibold text-slate-950">{destination.duration}</p>
+                                        <p className="mt-1 text-sm font-medium text-slate-950">{destination.dates}</p>
+                                        <p className="mt-auto text-[26px] leading-none font-black tracking-tight text-slate-950">
+                                            from {destination.price}
+                                        </p>
+                                    </div>
+                                </Link>
+                            ))}
                         </div>
-                        <Button asChild>
-                            <Link href={route('bookings.create')}>Book a flight</Link>
-                        </Button>
-                    </div>
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="size-12 rounded-full border-slate-200 bg-white text-slate-500 shadow-sm"
+                                aria-label="Previous destinations"
+                                onClick={() => setDestinationOffset((current) => (current - 1 + destinations.length) % destinations.length)}
+                            >
+                                <ChevronLeft className="size-5" aria-hidden="true" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="size-12 rounded-full border-slate-200 bg-white text-slate-950 shadow-sm"
+                                aria-label="Next destinations"
+                                onClick={() => setDestinationOffset((current) => (current + 1) % destinations.length)}
+                            >
+                                <ChevronRight className="size-5" aria-hidden="true" />
+                            </Button>
+                        </div>
+                    </section>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Upcoming flights</CardTitle>
-                            <CardDescription>Your confirmed reservations, ordered by departure time.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {upcomingBookings.length === 0 ? (
-                                <div className="rounded-lg border border-dashed p-8 text-center">
-                                    <Plane className="text-muted-foreground mx-auto size-8" aria-hidden="true" />
-                                    <p className="mt-3 font-medium">No upcoming reservations</p>
-                                    <p className="text-muted-foreground mt-1 text-sm">Book a seat to see your flight schedule here.</p>
-                                    <Button asChild variant="outline" className="mt-4">
-                                        <Link href={route('flights.index')}>Browse flights</Link>
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {upcomingBookings.map((booking) => {
-                                        const flight = booking.flight;
-                                        if (!flight) return null;
-
-                                        const departure = new Date(flight.departure_time);
-                                        const departingNow = Math.abs(departure.getTime() - Date.now()) <= 30 * 60 * 1000;
-
-                                        return (
-                                            <article
-                                                key={booking.id}
-                                                className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                                            >
-                                                <div className="space-y-1">
-                                                    <p className="font-semibold">{flight.flight_number}</p>
-                                                    <p className="text-lg font-medium">
-                                                        {flight.origin_airport?.code ?? 'N/A'} <span className="text-muted-foreground">to</span>{' '}
-                                                        {flight.destination_airport?.code ?? 'N/A'}
-                                                    </p>
-                                                    <p className="text-muted-foreground text-sm">
-                                                        {flight.origin_airport?.name ?? 'Unknown airport'} (
-                                                        {flight.origin_airport?.city ?? 'Unknown city'}) to{' '}
-                                                        {flight.destination_airport?.name ?? 'Unknown airport'} (
-                                                        {flight.destination_airport?.city ?? 'Unknown city'})
-                                                    </p>
-                                                    <p className="text-muted-foreground text-sm">
-                                                        Seat {booking.seat?.seat_number ?? 'N/A'} · Ref {booking.booking_reference}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-4 sm:justify-end">
-                                                    <div className="text-left sm:text-right">
-                                                        <p className="font-medium">{dateTime(flight.departure_time)}</p>
-                                                        <p className="text-muted-foreground text-sm">Departure</p>
-                                                    </div>
-                                                    <Badge variant={departingNow ? 'default' : 'secondary'}>
-                                                        {departingNow ? 'Departing now' : 'Upcoming'}
-                                                    </Badge>
-                                                </div>
-                                            </article>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <div className="flex justify-end">
-                        <Button asChild variant="outline">
-                            <Link href={route('bookings.index')}>View all my bookings</Link>
-                        </Button>
-                    </div>
                 </div>
             </AirlineLayout>
         );
