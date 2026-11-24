@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-interface LoginForm {
+interface LoginForm extends Record<string, string | boolean> {
     email: string;
     password: string;
     remember: boolean;
@@ -40,8 +40,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             <main className="grid min-h-svh bg-[#f4f7fb] lg:grid-cols-[1.08fr_0.92fr]">
                 <section className="relative hidden overflow-hidden bg-[#071a3d] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
                     <div className="absolute inset-0 opacity-20" aria-hidden="true">
-                        <div className="absolute -right-28 -top-24 h-96 w-96 rounded-full border border-blue-300/50" />
-                        <div className="absolute -right-10 top-10 h-64 w-64 rounded-full border border-blue-300/40" />
+                        <div className="absolute -top-24 -right-28 h-96 w-96 rounded-full border border-blue-300/50" />
+                        <div className="absolute top-10 -right-10 h-64 w-64 rounded-full border border-blue-300/40" />
                         <div className="absolute bottom-[-14rem] left-[-10rem] h-[32rem] w-[32rem] rounded-full border border-blue-300/30" />
                     </div>
 
@@ -58,10 +58,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </div>
 
                     <div className="relative z-10 max-w-xl">
-                        <p className="mb-5 text-sm font-semibold uppercase tracking-[0.25em] text-blue-300">Welcome aboard</p>
-                        <h2 className="text-5xl font-semibold leading-[1.08] tracking-tight text-white xl:text-6xl">
-                            Your journey starts here.
-                        </h2>
+                        <p className="mb-5 text-sm font-semibold tracking-[0.25em] text-blue-300 uppercase">Welcome aboard</p>
+                        <h2 className="text-5xl leading-[1.08] font-semibold tracking-tight text-white xl:text-6xl">Your journey starts here.</h2>
                         <p className="mt-6 max-w-md text-base leading-7 text-blue-100/80">
                             Sign in to manage flights, reservations, and passenger details in one place.
                         </p>
@@ -98,7 +96,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                         <form className="space-y-5" onSubmit={submit}>
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-slate-700">Email address</Label>
+                                <Label htmlFor="email" className="text-slate-700">
+                                    Email address
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -116,7 +116,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <Label htmlFor="password" className="text-slate-700">Password</Label>
+                                    <Label htmlFor="password" className="text-slate-700">
+                                        Password
+                                    </Label>
                                     {canResetPassword && (
                                         <TextLink href={route('password.request')} className="text-sm font-medium text-blue-700" tabIndex={5}>
                                             Forgot password?
@@ -145,7 +147,9 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     onCheckedChange={(checked) => setData('remember', checked === true)}
                                     tabIndex={3}
                                 />
-                                <Label htmlFor="remember" className="cursor-pointer text-sm text-slate-600">Remember me</Label>
+                                <Label htmlFor="remember" className="cursor-pointer text-sm text-slate-600">
+                                    Remember me
+                                </Label>
                             </div>
 
                             <Button

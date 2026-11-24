@@ -24,6 +24,16 @@ class Flight extends Model
         'departure_time' => 'datetime',
     ];
 
+    public function setOriginAirportIdAttribute(string $value): void
+    {
+        $this->attributes['origin_airport_id'] = strtoupper(trim($value));
+    }
+
+    public function setDestinationAirportIdAttribute(string $value): void
+    {
+        $this->attributes['destination_airport_id'] = strtoupper(trim($value));
+    }
+
     // Add 'code' as the third parameter so Laravel knows the airports table uses 'code' as the primary key
     public function originAirport(): BelongsTo
     {
@@ -42,7 +52,7 @@ class Flight extends Model
 
     public function availableSeats(): HasMany
     {
-        return $this->passengerSeats()->where('is_available', true);
+        return $this->passengerSeats()->availableForBooking();
     }
 
     public function bookings(): HasMany

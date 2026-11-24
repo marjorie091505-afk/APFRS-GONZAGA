@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Flight;
 use App\Models\Airport;
+use App\Http\Requests\IndexFlightRequest;
+use App\Http\Requests\StoreFlightRequest;
 use App\Services\DomainService;
+use Database\Seeders\AirportSeeder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class FlightController extends Controller
 {
@@ -18,15 +21,13 @@ class FlightController extends Controller
     /**
      * Display a listing of the flights.
      */
-    public function index(Request $request): View
+    public function index(IndexFlightRequest $request): Response
     {
-        //THIS MUST BE DONE N UR FORM REQUEST
-        $validated = $request->validate([
-            'search' => ['nullable', 'string', 'max:100'],
-        ]);
+        $validated = $request->validated();
         $search = trim($validated['search'] ?? '');
 
-        $flights = Flight::with(['originAirport', 'destinationAirport'])// NEED FURTHER OPTIMIZATION
+        $flights = Flight::with(['originAirport', 'destinationAirport'])
+            ->withCount('availableSeats')
             ->when($search !== '', function (Builder $query) use ($search) {
                 $term = '%'.$search.'%';
 
@@ -48,7 +49,7 @@ class FlightController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('flights.index', compact('flights', 'search'));
+        return Inertia::render('flights/index', compact('flights', 'search'));
     }
 
     /**
@@ -56,29 +57,25 @@ class FlightController extends Controller
      */
     public function create()
     {
-        // Get all airports to populate the dropdowns in the form
-        $airports = Airport::all();// NEED FURTHER OPTIMIZATION: THIS CAN CAUSE N+1
+        abort_unless(auth()->user()->is_admin, 403);
 
-        return view('flights.create', compact('airports'));
+        if (Airport::count() === 0) {
+            app(AirportSeeder::class)->run();
+        }
+
+        $airports = Airport::orderBy('code')->get();
+
+        return Inertia::render('flights/create', compact('airports'));
     }
 
     /**
      * Store a newly created flight in storage.
      */
-    public function store(Request $request)
+    public function store(StoreFlightRequest $request)
     {
-        //THIS MUS T BE DONE N UR FORM REQUEST - TRANSFER THIS
-        // 1. Validate the form data
-        $validated = $request->validate([
-            'flight_number' => 'required|string|max:15|unique:flights,flight_number',
-            'origin_airport_id' => 'required|string|exists:airports,code',
-            'destination_airport_id' => 'required|string|exists:airports,code',
-            'departure_time' => 'required|date',
-            'base_fare' => 'required|numeric|min:0',
-        ]);
+        abort_unless(auth()->user()->is_admin, 403);
 
-        $validated['origin_airport_id'] = strtoupper($validated['origin_airport_id']);
-        $validated['destination_airport_id'] = strtoupper($validated['destination_airport_id']);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
             $flight = Flight::create([

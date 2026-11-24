@@ -6,6 +6,7 @@ use App\Models\Airport;
 use App\Models\Flight;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class FlightDeleteTest extends TestCase
@@ -21,7 +22,11 @@ class FlightDeleteTest extends TestCase
         $this->actingAs($admin)
             ->get('/flights')
             ->assertOk()
-            ->assertSee('Delete');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('flights/index')
+                ->where('auth.user.is_admin', true)
+                ->where('flights.data.0.flight_number', $flight->flight_number)
+            );
 
         $this->delete(route('flights.destroy', $flight))
             ->assertRedirect('/flights')

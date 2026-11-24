@@ -31,6 +31,13 @@ class PasswordUpdateTest extends TestCase
         $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
     }
 
+    public function test_password_settings_screen_can_be_rendered()
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/settings/password')
+            ->assertOk();
+    }
+
     public function test_correct_password_must_be_provided_to_update_password()
     {
         $user = User::factory()->create();

@@ -6,6 +6,7 @@ use App\Models\Airport;
 use App\Models\Flight;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class FlightSearchTest extends TestCase
@@ -50,14 +51,30 @@ class FlightSearchTest extends TestCase
 
         $this->actingAs(User::factory()->create());
 
-        $this->get('/flights?search=GA101')
-            ->assertOk()
-            ->assertSee('GA101')
-            ->assertDontSee('GA202');
+        foreach ([
+            'GA101' => 'GA101',
+            'SIN' => 'GA202',
+            'Changi Airport' => 'GA202',
+            'Singapore' => 'GA202',
+            'CEB' => 'GA101',
+            'Cebu Airport' => 'GA101',
+            'Cebu' => 'GA101',
+        ] as $search => $flightNumber) {
+            $this->get('/flights?search='.urlencode($search))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('flights/index')
+                    ->where('search', $search)
+                    ->has('flights.data', 1)
+                    ->where('flights.data.0.flight_number', $flightNumber)
+                );
+        }
+    }
 
-        $this->get('/flights?search=Changi')
-            ->assertOk()
-            ->assertSee('GA202')
-            ->assertDontSee('GA101');
+    public function test_flight_search_is_limited_to_100_characters(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/flights?search='.str_repeat('a', 101))
+            ->assertSessionHasErrors('search');
     }
 }

@@ -18,7 +18,7 @@
             <!-- Origin -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Origin Airport</label>
-                <select name="origin_airport_id" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
+                <select id="origin-airport" name="origin_airport_id" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
                     <option value="">Select Airport</option>
                     @foreach($airports as $airport)
                         <option value="{{ $airport->code }}" {{ old('origin_airport_id') == $airport->code ? 'selected' : '' }}>
@@ -26,12 +26,13 @@
                         </option>
                     @endforeach
                 </select>
+                @error('origin_airport_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
             </div>
 
             <!-- Destination -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Destination Airport</label>
-                <select name="destination_airport_id" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
+                <select id="destination-airport" name="destination_airport_id" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
                     <option value="">Select Airport</option>
                     @foreach($airports as $airport)
                         <option value="{{ $airport->code }}" {{ old('destination_airport_id') == $airport->code ? 'selected' : '' }}>
@@ -39,6 +40,7 @@
                         </option>
                     @endforeach
                 </select>
+                @error('destination_airport_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
             </div>
         </div>
 
@@ -61,4 +63,27 @@
         </div>
     </form>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const origin = document.getElementById('origin-airport');
+        const destination = document.getElementById('destination-airport');
+
+        if (!origin || !destination) return;
+
+        function syncAirportChoices() {
+            Array.from(origin.options).forEach(function (option) {
+                option.disabled = destination.value !== '' && option.value === destination.value;
+            });
+
+            Array.from(destination.options).forEach(function (option) {
+                option.disabled = origin.value !== '' && option.value === origin.value;
+            });
+        }
+
+        origin.addEventListener('change', syncAirportChoices);
+        destination.addEventListener('change', syncAirportChoices);
+        syncAirportChoices();
+    });
+</script>
 @endsection

@@ -1,7 +1,6 @@
 import InputError from '@/components/input-error';
-import AppLayout from '@/layouts/app-layout';
+import AirlineLayout from '@/layouts/airline-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
@@ -10,13 +9,6 @@ import HeadingSmall from '@/components/heading-small';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Password settings',
-        href: '/settings/password',
-    },
-];
 
 export default function Password() {
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -49,11 +41,11 @@ export default function Password() {
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Profile settings" />
+        <AirlineLayout>
+            <Head title="Password settings" />
 
             <SettingsLayout>
-                <div className="space-y-6">
+                <section className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                     <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
 
                     <form onSubmit={updatePassword} className="space-y-6">
@@ -117,12 +109,12 @@ export default function Password() {
                                 leave="transition ease-in-out"
                                 leaveTo="opacity-0"
                             >
-                                <p className="text-sm text-neutral-600">Saved</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Saved</p>
                             </Transition>
                         </div>
                     </form>
-                </div>
+                </section>
             </SettingsLayout>
-        </AppLayout>
+        </AirlineLayout>
     );
 }

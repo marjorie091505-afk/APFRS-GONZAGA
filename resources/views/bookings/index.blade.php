@@ -29,6 +29,9 @@
                 <th class="p-3">Flight</th>
                 <th class="p-3">Seat</th>
                 <th class="p-3">Total Paid</th>
+                @if(auth()->user()->is_admin)
+                    <th class="p-3 text-right">Actions</th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -44,10 +47,41 @@
             
             <td class="p-3">{{ $booking->seat_class }}</td>
             <td class="p-3 font-bold text-green-600">₱{{ number_format($booking->total_paid, 2) }}</td>
+            @if(auth()->user()->is_admin)
+                <td class="p-3">
+                    <div class="flex justify-end gap-2">
+                        <a href="{{ route('bookings.edit', $booking) }}"
+                           class="rounded-md border border-blue-300 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                           aria-label="Edit booking">
+                            Edit
+                        </a>
+                        <form method="POST"
+                              action="{{ route('bookings.destroy', $booking) }}"
+                              onsubmit="return confirm('Delete this booking?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50"
+                                    aria-label="Delete booking"
+                                    title="Delete booking">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                     class="h-4 w-4" aria-hidden="true">
+                                    <path d="M3 6h18"></path>
+                                    <path d="M8 6V4h8v2"></path>
+                                    <path d="M19 6l-1 14H6L5 6"></path>
+                                    <path d="M10 11v5"></path>
+                                    <path d="M14 11v5"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            @endif
         </tr>
     @empty
         <tr>
-            <td colspan="5" class="p-3 text-center text-gray-500">No bookings found yet.</td>
+            <td colspan="{{ auth()->user()->is_admin ? 6 : 5 }}" class="p-3 text-center text-gray-500">No bookings found yet.</td>
         </tr>
     @endforelse
 </tbody>

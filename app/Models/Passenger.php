@@ -12,6 +12,11 @@ class Passenger extends Model
 
     protected $fillable = ['passport_number', 'full_name'];
 
+    public function setPassportNumberAttribute(string $value): void
+    {
+        $this->attributes['passport_number'] = strtoupper(trim($value));
+    }
+
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);

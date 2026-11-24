@@ -15,7 +15,7 @@ class StoreBookingRequest extends FormRequest
     {
         return [
             'passport_number'   => ['required', 'string', 'max:20'],
-            'full_name'         => ['required', 'string', 'max:255'],
+            'full_name'         => ['required', 'string', 'max:150'],
             'email'             => ['nullable', 'email', 'max:255'],
             'phone'             => ['nullable', 'string', 'max:20'],
             'flight_id'         => ['required', 'integer', 'exists:flights,id'],

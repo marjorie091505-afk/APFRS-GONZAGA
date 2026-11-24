@@ -6,39 +6,65 @@ use App\Models\Booking;
 use App\Models\Flight;
 use App\Models\Passenger;
 use App\Models\PassengerSeat;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(): Response
     {
+        $user = auth()->user();
+        $now = now();
+
+        if (! $user->is_admin) {
+            $upcomingBookings = Booking::query()
+                ->select('bookings.*')
+                ->join('flights', 'flights.id', '=', 'bookings.flight_id')
+                ->where('bookings.user_id', $user->getKey())
+                ->where('flights.departure_time', '>=', $now)
+                ->with([
+                    'flight:id,flight_number,origin_airport_id,destination_airport_id,departure_time',
+                    'flight.originAirport:code,name,city',
+                    'flight.destinationAirport:code,name,city',
+                    'seat:id,flight_id,seat_number,seat_class',
+                ])
+                ->orderBy('flights.departure_time')
+                ->limit(5)
+                ->get();
+
+            return Inertia::render('dashboard', [
+                'upcomingBookings' => $upcomingBookings,
+            ]);
+        }
+
         $stats = [
             'flights' => Flight::count(),
             'bookings' => Booking::count(),
             'passengers' => Passenger::count(),
-            'available_seats' => PassengerSeat::where('is_available', true)->count(),
+            'available_seats' => PassengerSeat::query()->availableForBooking()->count(),
             'revenue' => Booking::sum('total_paid'),
-            'upcoming_flights' => Flight::where('departure_time', '>=', now())->count(),
+            'upcoming_flights' => Flight::where('departure_time', '>=', $now)->count(),
         ];
 
         $recentBookings = Booking::with([
-            'passenger',// NEED FURTHER OPTIMIZATION
-            'flight.originAirport',// NEED FURTHER OPTIMIZATION
-            'flight.destinationAirport',// NEED FURTHER OPTIMIZATION
+            'passenger:id,full_name',
+            'flight:id,flight_number,origin_airport_id,destination_airport_id,departure_time',
+            'flight.originAirport:code,name,city',
+            'flight.destinationAirport:code,name,city',
         ])
-            ->latest()
-            ->take(5)
+            ->latest('created_at')
+            ->limit(5)
             ->get();
 
         $upcomingFlights = Flight::with([
-            'originAirport',// NEED FURTHER OPTIMIZATION
-            'destinationAirport',// NEED FURTHER OPTIMIZATION
+            'originAirport:code,name,city',
+            'destinationAirport:code,name,city',
         ])
-            ->where('departure_time', '>=', now())
+            ->where('departure_time', '>=', $now)
             ->orderBy('departure_time')
-            ->take(5)
+            ->limit(5)
             ->get();
 
-        return view('dashboard.index', compact('stats', 'recentBookings', 'upcomingFlights'));
+        return Inertia::render('dashboard', compact('stats', 'recentBookings', 'upcomingFlights'));
     }
 }

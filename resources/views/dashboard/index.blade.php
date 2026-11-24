@@ -1,6 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $dashboardCards = [
+        ['label' => 'Total Flights', 'value' => number_format($stats['flights']), 'href' => route('flights.index'), 'valueClass' => 'text-gray-900'],
+        ['label' => 'Total Bookings', 'value' => number_format($stats['bookings']), 'href' => route('bookings.index'), 'valueClass' => 'text-gray-900'],
+        ['label' => 'Passengers', 'value' => number_format($stats['passengers']), 'href' => route('bookings.index'), 'valueClass' => 'text-gray-900'],
+        ['label' => 'Available Seats', 'value' => number_format($stats['available_seats']), 'href' => route('flights.index'), 'valueClass' => 'text-gray-900'],
+        ['label' => 'Upcoming Flights', 'value' => number_format($stats['upcoming_flights']), 'href' => route('flights.index'), 'valueClass' => 'text-gray-900'],
+        ['label' => 'Total Revenue', 'value' => '₱'.number_format($stats['revenue'], 2), 'href' => route('bookings.index'), 'valueClass' => 'text-green-600'],
+    ];
+@endphp
 <div class="space-y-8">
     <div>
         <p class="text-sm font-semibold text-blue-600">Airline Operations</p>
@@ -9,30 +19,22 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Total Flights</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['flights']) }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Total Bookings</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['bookings']) }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Passengers</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['passengers']) }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Available Seats</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['available_seats']) }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Upcoming Flights</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['upcoming_flights']) }}</p>
-        </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p class="text-sm text-gray-500">Total Revenue</p>
-            <p class="mt-2 text-3xl font-bold text-green-600">₱{{ number_format($stats['revenue'], 2) }}</p>
-        </div>
+        @foreach($dashboardCards as $card)
+            @if(auth()->user()->is_admin)
+                <a href="{{ $card['href'] }}"
+                   aria-label="{{ $card['label'] }}: {{ $card['value'] }}"
+                   class="block rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+            @else
+                <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            @endif
+                <p class="text-sm text-gray-500">{{ $card['label'] }}</p>
+                <p class="mt-2 text-3xl font-bold {{ $card['valueClass'] }}">{{ $card['value'] }}</p>
+            @if(auth()->user()->is_admin)
+                </a>
+            @else
+                </div>
+            @endif
+        @endforeach
     </div>
 
     <div class="grid gap-6 lg:grid-cols-2">

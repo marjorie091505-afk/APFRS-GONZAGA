@@ -6,40 +6,68 @@ use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Booking;
 use App\Models\Flight;
-use App\Services\DomainService;
+use App\Services\BookingService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use InvalidArgumentException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class BookingController extends Controller
 {
-    public function __construct(private DomainService $service) {}
+    public function __construct(private BookingService $service) {}
 
-    public function index(): View
+    public function index(): Response
     {
-        $bookings = Booking::with([
-                'passenger', // NEED FURTHER OPTIMIZATION: This eager loading is necessary to avoid N+1 queries, but we should consider if we can limit the fields retrieved for the passenger to only those needed for the view.
-                'flight.originAirport',// NEED FURTHER OPTIMIZATION
-                'flight.destinationAirport',// NEED FURTHER OPTIMIZATION
-                'seat',// NEED FURTHER OPTIMIZATION
+        $query = Booking::query()
+            ->select([
+                'bookings.id',
+                'bookings.booking_reference',
+                'bookings.passenger_id',
+                'bookings.flight_id',
+                'bookings.passenger_seat_id',
+                'bookings.seat_class',
+                'bookings.baggage_fee',
+                'bookings.total_paid',
+                'bookings.created_at',
             ])
-            ->latest()
-            ->paginate(10);
+            ->with([
+                'passenger:id,passport_number,full_name',
+                'flight:id,flight_number,origin_airport_id,destination_airport_id,departure_time,base_fare',
+                'flight.originAirport:code,name,city,country',
+                'flight.destinationAirport:code,name,city,country',
+                'seat:id,flight_id,seat_number,seat_class,is_available',
+            ])
+            ->latest('bookings.created_at');
 
-        return view('bookings.index', compact('bookings'));
+        if (! auth()->user()->is_admin) {
+            $query->where('bookings.user_id', auth()->id());
+        }
+
+        $bookings = $query->paginate(10);
+
+        return Inertia::render('bookings/index', compact('bookings'));
     }
 
-    public function create(): View
+    public function create(): Response
     {
-        // THIS is the fix. We explicitly load availableSeats here.
-        $flights = Flight::with(['originAirport', 'destinationAirport', 'availableSeats'])->get();// NEED FURTHER OPTIMIZATION
-        return view('bookings.create', compact('flights'));
+        $flights = Flight::query()
+            ->select(['id', 'flight_number', 'origin_airport_id', 'destination_airport_id', 'departure_time', 'base_fare'])
+            ->with([
+                'originAirport:code,name,city,country',
+                'destinationAirport:code,name,city,country',
+                'availableSeats:id,flight_id,seat_number,seat_class,is_available',
+            ])
+            ->where('departure_time', '>=', now())
+            ->orderBy('departure_time')
+            ->get();
+
+        return Inertia::render('bookings/create', compact('flights'));
     }
 
     public function store(StoreBookingRequest $request): RedirectResponse
     {
         try {
-            $this->service->createBooking($request->validated());
+            $this->service->createBooking($request->validated(), auth()->id());
 
             return redirect()->route('bookings.index')
                 ->with('success', 'Reservation confirmed successfully.');
@@ -48,16 +76,50 @@ class BookingController extends Controller
         }
     }
 
-    public function update(UpdateBookingRequest $request, $id): RedirectResponse
+    public function update(UpdateBookingRequest $request, Booking $booking): RedirectResponse
     {
         try {
-            $booking = Booking::findOrFail($id);// NEED FURTHER OPTIMIZATION
-            $this->service->updateBooking($booking, $request->validated());// NEED FURTHER OPTIMIZATION
+            abort_unless(auth()->user()->is_admin, 403);
+            $this->service->updateBooking($booking, $request->validated());
 
             return redirect()->route('bookings.index')
                 ->with('success', 'Booking updated successfully.');
         } catch (InvalidArgumentException $e) {
             return back()->withInput()->withErrors(['passenger_seat_id' => $e->getMessage()]);
         }
+    }
+
+    public function edit(Booking $booking): Response
+    {
+        abort_unless(auth()->user()->is_admin, 403);
+
+        $booking->load([
+            'passenger:id,passport_number,full_name',
+            'seat:id,flight_id,seat_number,seat_class,is_available',
+            'flight:id,flight_number,origin_airport_id,destination_airport_id,departure_time,base_fare',
+            'flight.originAirport:code,name,city,country',
+            'flight.destinationAirport:code,name,city,country',
+        ]);
+        $flights = Flight::query()
+            ->select(['id', 'flight_number', 'origin_airport_id', 'destination_airport_id', 'departure_time', 'base_fare'])
+            ->with([
+                'originAirport:code,name,city,country',
+                'destinationAirport:code,name,city,country',
+                'passengerSeats:id,flight_id,seat_number,seat_class,is_available',
+            ])
+            ->orderBy('departure_time')
+            ->get();
+
+        return Inertia::render('bookings/edit', compact('booking', 'flights'));
+    }
+
+    public function destroy(Booking $booking): RedirectResponse
+    {
+        abort_unless(auth()->user()->is_admin, 403);
+
+        $this->service->deleteBooking($booking);
+
+        return redirect()->route('bookings.index')
+            ->with('success', 'Booking deleted successfully.');
     }
 }

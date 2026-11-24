@@ -25,6 +25,10 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    flash?: {
+        success?: string | null;
+        error?: string | null;
+    };
     [key: string]: unknown;
 }
 
@@ -32,6 +36,7 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    is_admin: boolean;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

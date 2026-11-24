@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Booking;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,16 +15,20 @@ class UpdateBookingRequest extends FormRequest
 
     public function rules(): array
     {
-        $bookingId = $this->route('booking');
+        $passportNumberRules = ['required', 'string', 'max:20'];
+        $booking = $this->route('booking');
+
+        if ($booking instanceof Booking) {
+            $passportNumberRules[] = Rule::unique('passengers', 'passport_number')
+                ->ignore($booking->passenger_id);
+        }
 
         return [
-            'booking_reference' => ['required', 'string', 'max:20', Rule::unique('bookings', 'booking_reference')->ignore($bookingId)],
-            'passport_number'   => ['required', 'string', 'max:20'],
+            'passport_number'   => $passportNumberRules,
             'full_name'         => ['required', 'string', 'max:150'],
             'flight_id'         => ['required', 'integer', 'exists:flights,id'],
-            'seat_class'        => ['required', 'string', 'in:Economy,Business,First'],
+            'passenger_seat_id' => ['required', 'integer', 'exists:passenger_seats,id'],
             'baggage_fee'       => ['nullable', 'numeric', 'min:0'],
-            'seat_number'       => ['required', 'string', 'max:5'],
         ];
     }
 }

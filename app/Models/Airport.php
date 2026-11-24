@@ -19,6 +19,11 @@ class Airport extends Model
     // 3. The fillable array
     protected $fillable = ['code', 'name', 'city', 'country'];
 
+    public function setCodeAttribute(string $value): void
+    {
+        $this->attributes['code'] = strtoupper(trim($value));
+    }
+
     public function departingFlights(): HasMany
     {
         return $this->hasMany(Flight::class, 'origin_airport_id', 'code');

@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Database\Seeders\AirportSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AirportOptionsTest extends TestCase
@@ -13,12 +13,15 @@ class AirportOptionsTest extends TestCase
 
     public function test_seeded_airports_are_available_when_creating_a_flight(): void
     {
-        $this->seed(AirportSeeder::class);
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
 
         $this->get('/flights/create')
             ->assertOk()
-            ->assertSee('MNL - Ninoy Aquino International Airport')
-            ->assertSee('CEB - Mactan-Cebu International Airport');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('flights/create')
+                ->has('airports', 4)
+                ->where('airports.0.code', 'CEB')
+                ->where('airports.2.code', 'MNL')
+            );
     }
 }

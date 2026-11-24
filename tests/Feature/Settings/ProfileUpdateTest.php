@@ -4,6 +4,7 @@ namespace Tests\Feature\Settings;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -21,6 +22,13 @@ class ProfileUpdateTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_appearance_page_uses_the_inertia_settings_component()
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/settings/appearance')
+            ->assertInertia(fn (Assert $page) => $page->component('settings/appearance'));
+    }
+
     public function test_profile_information_can_be_updated()
     {
         $user = User::factory()->create();
@@ -30,6 +38,7 @@ class ProfileUpdateTest extends TestCase
             ->patch('/settings/profile', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
+                'is_admin' => true,
             ]);
 
         $response
@@ -40,6 +49,7 @@ class ProfileUpdateTest extends TestCase
 
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
+        $this->assertFalse($user->is_admin);
         $this->assertNull($user->email_verified_at);
     }
 

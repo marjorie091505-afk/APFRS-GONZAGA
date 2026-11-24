@@ -52,7 +52,7 @@
                 <td class="px-6 py-4">{{ $flight->departure_time->format('M d, Y h:i A') }}</td>
                 <td class="px-6 py-4">₱{{ number_format($flight->base_fare, 2) }}</td>
                 <td class="px-6 py-4">
-                   
+                    {{ $flight->available_seats_count }}
                 </td>
                 @if(auth()->user()->is_admin)
                     <td class="px-6 py-4 text-right">
